@@ -1,5 +1,19 @@
 var express = require('express');
 var aws = require('aws-sdk')
+//Setup mongo
+const MongoClient = require('mongodb').MongoClient;
+const uri = "mongodb+srv://mongo-admin:<password>@cluster0.ltwaf.mongodb.net/<dbname>?retryWrites=true&w=majority";
+const client = new MongoClient(uri, { useNewUrlParser: true });
+client.connect(err => {
+  const collection = client.db("test").collection("devices");
+  // perform actions on the collection object
+  console.log("We are connected");
+
+  client.close();
+});
+
+
+
 
 // Get keys from .env
 const { S3_ACCESS_ID, S3_SECRET_ACCESS_KEY } = require('./config')
