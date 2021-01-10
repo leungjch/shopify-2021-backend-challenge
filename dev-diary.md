@@ -1,2 +1,7 @@
 # Jan 9 2020
 Here are my ideas for this project so far: Allow the user to upload multiple images to the backend. The backend runs an image classifier (something like YOLO V3) and generates keyword that tags the image. These images are stored somewhere, such as MongoDB or on Amazon S3. The user can use a search functionality to search by the AI-generated keywords. So if the user uploads an image of cake or horses and searches "horses", then they will filter by pictures of horses even though they (nor any other user) had manually described their image as a horse. 
+
+
+I'm using S3 to store the actual image contents. I will use MongoDB to store **strings** that are links to the actual files on S3.
+
+I will also create an Express/Node server, which will be hosted on Heroku. This server is responsible for uploading and fetching the images to MongoDB/S3. The server also has a computer vision model which processes the image and generates tags from it. 

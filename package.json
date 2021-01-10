@@ -10,10 +10,14 @@
   "author": "Justin Leung",
   "repository": {
     "type": "git",
-    "url": "https://github.com/leungjch/shopify-backend-challenge-summer21.git"
+    "url": "https://github.com/leungjch/shopify-2021-backend-challenge"
   },
   "license": "ISC",
   "dependencies": {
-    "express": "^4.17.1"
+    "aws-sdk": "^2.824.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "multer": "^1.4.2",
+    "multer-s3": "^2.9.0"
   }
 }
