@@ -1,22 +1,37 @@
 var express = require('express');
+// Get keys from .env
+const { S3_ACCESS_ID, S3_SECRET_ACCESS_KEY, MONGO_ADMIN_PASSWORD, MONGO_DBNAME, MONGO_ADMIN_USER } = require('./config')
+
 var aws = require('aws-sdk')
 //Setup mongo
 const MongoClient = require('mongodb').MongoClient;
-const uri = "mongodb+srv://mongo-admin:<password>@cluster0.ltwaf.mongodb.net/<dbname>?retryWrites=true&w=majority";
-const client = new MongoClient(uri, { useNewUrlParser: true });
-client.connect(err => {
-  const collection = client.db("test").collection("devices");
-  // perform actions on the collection object
-  console.log("We are connected");
-
-  client.close();
-});
+const uri = `mongodb+srv://mongo-admin:${MONGO_ADMIN_PASSWORD}@cluster0.ltwaf.mongodb.net/${MONGO_DBNAME}?retryWrites=true&w=majority`;
+const client = new MongoClient(uri);
 
 
+async function mongoDB_insert(files) {
+    try {
+        // Connect to DB
+        await client.connect();
+        console.log("Connected correctly to server");
 
+        const db = client.db(MONGO_DBNAME);
+        const col = db.collection("images");
+        // Create image documents from uploaded files
+        let imageDocuments = Array.from(files, x => ({name: x['originalName'], url: x['location']}))
 
-// Get keys from .env
-const { S3_ACCESS_ID, S3_SECRET_ACCESS_KEY } = require('./config')
+        // Insert into DB
+        const p = await col.insertMany(imageDocuments);
+        // const myDoc = await col.findOne();
+        // console.log(myDoc);
+    } catch (err) {
+        console.log(err.stack);
+    }
+    finally {
+        await client.close();
+    }
+}
+
 
 var app = express();
 var s3 = new aws.S3();
@@ -60,6 +75,10 @@ app.use(bodyParser.urlencoded({
 app.post('/upload', upload.array('upl'), function (req, res, next) {
     console.log("FILES HERE", req.files)
     // res.send("Uploaded!");
+
+    // Upload to mongodb
+    mongoDB_insert(req.files).catch(console.dir);
+
     res.redirect('/');
 });
 
