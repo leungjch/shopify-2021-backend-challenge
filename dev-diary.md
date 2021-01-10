@@ -5,3 +5,5 @@ Here are my ideas for this project so far: Allow the user to upload multiple ima
 I'm using S3 to store the actual image contents. I will use MongoDB to store **strings** that are links to the actual files on S3.
 
 I will also create an Express/Node server, which will be hosted on Heroku. This server is responsible for uploading and fetching the images to MongoDB/S3. The server also has a computer vision model which processes the image and generates tags from it. 
+
+I used the standard .gitignore that is recommended by Github. This makes sure that I did not accidentally put my secret keys out in the public. 
