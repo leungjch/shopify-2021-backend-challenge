@@ -5,6 +5,7 @@ const fs = require('fs');
 var multer = require('multer');
 var multerS3 = require('multer-s3');
 var sizeOf = require('image-size');
+const path = require('path');
 
 
 var cors = require('cors');
