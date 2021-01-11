@@ -4,6 +4,8 @@ const image = require('get-image-data');
 const fs = require('fs');
 var multer = require('multer');
 var multerS3 = require('multer-s3');
+var sizeOf = require('image-size');
+
 
 var cors = require('cors');
 var bodyParser = require('body-parser');
@@ -20,7 +22,7 @@ const MongoClient = require('mongodb').MongoClient;
 const uri = `mongodb+srv://mongo-admin:${MONGO_ADMIN_PASSWORD}@cluster0.ltwaf.mongodb.net/${MONGO_DBNAME}?retryWrites=true&w=majority`;
 const client = new MongoClient(uri);
 
-async function mongoDB_insert(file) {
+async function mongoDB_insert(file, dims) {
     try {
         // Connect to DB
         await client.connect();
@@ -29,7 +31,7 @@ async function mongoDB_insert(file) {
         const db = client.db(MONGO_DBNAME);
         const col = db.collection("images");
         // Create image documents from uploaded files
-        let imageDocuments = { name: file['originalname'], url: `https://shopify-image-repo-leungjch.s3.amazonaws.com/${file['originalname']}` }
+        let imageDocuments = { name: file['originalname'], url: `https://shopify-image-repo-leungjch.s3.amazonaws.com/${file['originalname']}`, width: dims['width'], height: dims['height'] }
 
         // Insert into DB
         const p = await col.insertOne(imageDocuments);
@@ -108,11 +110,8 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
     let img = req.file
     console.log("IMG IS", img)
 
-    var dims = await image(imagePath, async (err, imageData) => {
-        console.log(imageData)
-        console.log("WIDTH IS", imageData.width, "HEIGHT IS", imageData.height)
-        return {width: imageData.width, height: imageData.height}
-    });
+    var dims = sizeOf(imagePath);
+    console.log(dims)
 
         const params = {
             Bucket: 'shopify-image-repo-leungjch',
@@ -130,7 +129,7 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
                 } else {
                     // Add all info to database after store picture to S3
                     console.log("SUccessfully added mongodb")
-                    mongoDB_insert(req.file).catch(console.dir);
+                    mongoDB_insert(req.file, dims).catch(console.dir);
 
                     // res.send(photos);
                 }
