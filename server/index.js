@@ -10,17 +10,19 @@ var sizeOf = require('image-size');
 var cors = require('cors');
 var bodyParser = require('body-parser');
 
-
 var express = require('express');
 // Get keys from .env
 const { S3_ACCESS_ID, S3_SECRET_ACCESS_KEY, MONGO_ADMIN_PASSWORD, MONGO_DBNAME, MONGO_ADMIN_USER } = require('./config')
-
 
 var aws = require('aws-sdk')
 //Setup mongo
 const MongoClient = require('mongodb').MongoClient;
 const uri = `mongodb+srv://mongo-admin:${MONGO_ADMIN_PASSWORD}@cluster0.ltwaf.mongodb.net/${MONGO_DBNAME}?retryWrites=true&w=majority`;
 const client = new MongoClient(uri);
+
+
+const PORT = process.env.PORT || 5000;
+
 
 async function mongoDB_insert(file, dims, predictions) {
     try {
@@ -193,6 +195,6 @@ app.get('/get_images', function (req, res) {
     });
 })
 
-app.listen(8000, function () {
-    console.log('App running on port 8000');
+app.listen(${PORT}, function () {
+    console.log(`App running on port ${PORT}`);
 });
