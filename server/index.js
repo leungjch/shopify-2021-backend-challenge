@@ -195,6 +195,16 @@ app.get('/get_images', function (req, res) {
     });
 })
 
+
+// For production build on Heroku
+if (process.env.NODE_ENV === "production"{
+    app.use(express.static("build"));
+    app.get("*", (req, res) => {
+      res.sendFile(path.resolve(__dirname,  "build", "index.html"));
+    });
+  }
+  
+
 app.listen(PORT, function () {
     console.log(`App running on port ${PORT}`);
 });
