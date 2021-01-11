@@ -1,4 +1,4 @@
-const tf = require('@tensorflow/tfjs');
+const tf = require('@tensorflow/tfjs-node');;
 const mobilenet = require('@tensorflow-models/mobilenet');
 const image = require('get-image-data');
 const fs = require('fs');
@@ -100,19 +100,48 @@ var s3 = new aws.S3({
 );
 
 
+async function load(img) {
+    // Load the model.
+    const model = await mobilenet.load();
+
+    // Classify the image.
+    const predictions = await model.classify(img);
+
+    console.log('Predictions: ');
+    console.log(predictions);
+    return predictions
+}
+
+
+
 // POST endpoint
 // Upload images to S3 and add entry to MongoDB
 app.post('/upload', upload.single('upl'), async function (req, res, next) {
 
     const imagePath = './images/test-image.jpg';
 
-    console.log("FILES HERE", req.file)
     let img = req.file
-    console.log("IMG IS", img)
 
     var dims = sizeOf(imagePath);
     console.log(dims)
 
+    // Perform inference using mobilenet
+    image(imagePath, async function (err, imageForMobilenet) {
+        const numChannels = 3;
+        const numPixels = imageForMobilenet.width * imageForMobilenet.height;
+        const values = new Int32Array(numPixels * numChannels);
+        var pixels = imageForMobilenet.data
+        for (let i = 0; i < numPixels; i++) {
+            for (let channel = 0; channel < numChannels; ++channel) {
+                values[i * numChannels + channel] = pixels[i * 4 + channel];
+            }
+        }
+        const outShape = [imageForMobilenet.height, imageForMobilenet.width, numChannels];
+        const input = tf.tensor3d(values, outShape, 'int32');
+        await load(input)
+
+
+        // Prepare upload data to S3
         const params = {
             Bucket: 'shopify-image-repo-leungjch',
             Key: img.originalname,
@@ -120,32 +149,28 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
             ContentType: img.mimetype,
             ACL: 'public-read'
         }
-    
+
         // Upload to S3
         s3.upload(params, async (err, data) => {
             try {
                 if (err) {
-                    console.log("ERROR HERE", err)
+                    console.log("ERROR UPLOADING TO S3:", err)
                 } else {
                     // Add all info to database after store picture to S3
                     console.log("SUccessfully added mongodb")
                     mongoDB_insert(req.file, dims).catch(console.dir);
-
-                    // res.send(photos);
                 }
             }
             catch (err) {
                 //   res.status(500).json({ msg: 'Server Error', error: err });
-                console.log("ERROR ERE")
+                console.log("ERROR UPLOADING TO S3:", err)
             }
         });
 
-
-
+    });
 
     res.redirect('/');
 });
-
 
 // GET endpoint
 // Fetch image data from MongoDB
@@ -161,9 +186,7 @@ app.get('/get_images', function (req, res) {
                 db.close();
             });
     });
-
 })
-
 
 app.listen(8000, function () {
     console.log('App running on port 8000');
