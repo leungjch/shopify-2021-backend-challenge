@@ -108,8 +108,11 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
     let img = req.file
     console.log("IMG IS", img)
 
-
-    // fs.readFile(imagePath, async (err, imageData) => {
+    var dims = await image(imagePath, async (err, imageData) => {
+        console.log(imageData)
+        console.log("WIDTH IS", imageData.width, "HEIGHT IS", imageData.height)
+        return {width: imageData.width, height: imageData.height}
+    });
 
         const params = {
             Bucket: 'shopify-image-repo-leungjch',
@@ -118,8 +121,7 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
             ContentType: img.mimetype,
             ACL: 'public-read'
         }
-        
-
+    
         // Upload to S3
         s3.upload(params, async (err, data) => {
             try {
@@ -139,7 +141,6 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
             }
         });
 
-    // });
 
 
 
