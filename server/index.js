@@ -22,7 +22,7 @@ const MongoClient = require('mongodb').MongoClient;
 const uri = `mongodb+srv://mongo-admin:${MONGO_ADMIN_PASSWORD}@cluster0.ltwaf.mongodb.net/${MONGO_DBNAME}?retryWrites=true&w=majority`;
 const client = new MongoClient(uri);
 
-async function mongoDB_insert(file, dims) {
+async function mongoDB_insert(file, dims, predictions) {
     try {
         // Connect to DB
         await client.connect();
@@ -31,18 +31,25 @@ async function mongoDB_insert(file, dims) {
         const db = client.db(MONGO_DBNAME);
         const col = db.collection("images");
         // Create image documents from uploaded files
-        let imageDocuments = { name: file['originalname'], url: `https://shopify-image-repo-leungjch.s3.amazonaws.com/${file['originalname']}`, width: dims['width'], height: dims['height'] }
+        let imageDocuments = 
+            { name: file['originalname'], 
+              url: `https://shopify-image-repo-leungjch.s3.amazonaws.com/${file['originalname']}`, 
+              width: dims['width'], 
+              height: dims['height'],
+              prediction: predictions[0]['className'],
+              probability: predictions[0]['probability']
+            }
 
         // Insert into DB
         const p = await col.insertOne(imageDocuments);
         // const myDoc = await col.findOne();
         // console.log(myDoc);
     } catch (err) {
-        console.log(err.stack);
+        console.log("MONGODB INSERT ERROR", err);
     }
-    finally {
-        await client.close();
-    }
+    // finally {
+    //     await client.close();
+    // }
 }
 
 async function mongoDB_fetchImages() {
@@ -61,9 +68,9 @@ async function mongoDB_fetchImages() {
     } catch (err) {
         console.log(err.stack);
     }
-    finally {
-        await client.close();
-    }
+    // finally {
+    //     await client.close();
+    // }
 }
 
 
@@ -113,7 +120,6 @@ async function load(img) {
 }
 
 
-
 // POST endpoint
 // Upload images to S3 and add entry to MongoDB
 app.post('/upload', upload.single('upl'), async function (req, res, next) {
@@ -126,7 +132,7 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
     console.log(dims)
 
     // Perform inference using mobilenet
-    image(imagePath, async function (err, imageForMobilenet) {
+    image(imagePath, async function (errImage, imageForMobilenet) {
         const numChannels = 3;
         const numPixels = imageForMobilenet.width * imageForMobilenet.height;
         const values = new Int32Array(numPixels * numChannels);
@@ -138,8 +144,7 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
         }
         const outShape = [imageForMobilenet.height, imageForMobilenet.width, numChannels];
         const input = tf.tensor3d(values, outShape, 'int32');
-        await load(input)
-
+        var predictions = await load(input)
 
         // Prepare upload data to S3
         const params = {
@@ -151,25 +156,24 @@ app.post('/upload', upload.single('upl'), async function (req, res, next) {
         }
 
         // Upload to S3
-        s3.upload(params, async (err, data) => {
+        s3.upload(params, async (err_s3, data) => {
             try {
-                if (err) {
-                    console.log("ERROR UPLOADING TO S3:", err)
+                if (err_s3) {
+                    console.log("ERROR UPLOADING TO S3:", err_s3)
                 } else {
                     // Add all info to database after store picture to S3
                     console.log("SUccessfully added mongodb")
-                    mongoDB_insert(req.file, dims).catch(console.dir);
+                    mongoDB_insert(req.file, dims, predictions).catch(console.dir);
                 }
             }
-            catch (err) {
-                //   res.status(500).json({ msg: 'Server Error', error: err });
-                console.log("ERROR UPLOADING TO S3:", err)
+            catch (err_s3) {
+                console.log("ERROR UPLOADING TO S3:", err_s3)
             }
         });
+        res.redirect('/');
 
     });
 
-    res.redirect('/');
 });
 
 // GET endpoint
@@ -178,8 +182,9 @@ app.get('/get_images', function (req, res) {
     MongoClient.connect(uri, function (err, db) {
         if (err) throw err;
         var dbo = db.db(MONGO_DBNAME);
-        dbo.collection("images").findOne(
-            function (err, result) {
+
+        
+        dbo.collection("images").find({}).toArray(function(err, result) {
                 if (err) throw err;
                 console.log("Successfully GET images", result)
                 res.json(result);

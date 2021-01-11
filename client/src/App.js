@@ -4,6 +4,7 @@ import { FormControl, Form } from "react-bootstrap"
 import Button from '@material-ui/core/Button';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
+import Gallery from 'react-photo-gallery'
 import { useState, useEffect } from 'react'
 
 
@@ -38,7 +39,8 @@ function App() {
       .then((response) => response.json())
       .then((data) => {
         console.log("Images are", data)
-        setImages(data);
+        console.log(Array.from(data, x => ({src: x['url'], width: x['width'], height: x['height']})));
+        setImages(Array.from(data, x => ({src: x['url'], width: x['width'], height: x['height']})));
       });  
   }
   // Perform operations when user loads page
@@ -96,6 +98,9 @@ function App() {
           <input type="submit" />
         </p>
       </form>
+
+
+      {images !== null? <Gallery photos = {images} /> : "hello"}
 
 
 
