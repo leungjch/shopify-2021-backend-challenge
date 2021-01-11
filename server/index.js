@@ -1,6 +1,18 @@
+const tf = require('@tensorflow/tfjs');
+const mobilenet = require('@tensorflow-models/mobilenet');
+const image = require('get-image-data');
+const fs = require('fs');
+var multer = require('multer');
+var multerS3 = require('multer-s3');
+
+var cors = require('cors');
+var bodyParser = require('body-parser');
+
+
 var express = require('express');
 // Get keys from .env
 const { S3_ACCESS_ID, S3_SECRET_ACCESS_KEY, MONGO_ADMIN_PASSWORD, MONGO_DBNAME, MONGO_ADMIN_USER } = require('./config')
+
 
 var aws = require('aws-sdk')
 //Setup mongo
@@ -8,8 +20,7 @@ const MongoClient = require('mongodb').MongoClient;
 const uri = `mongodb+srv://mongo-admin:${MONGO_ADMIN_PASSWORD}@cluster0.ltwaf.mongodb.net/${MONGO_DBNAME}?retryWrites=true&w=majority`;
 const client = new MongoClient(uri);
 
-
-async function mongoDB_insert(files) {
+async function mongoDB_insert(file) {
     try {
         // Connect to DB
         await client.connect();
@@ -18,10 +29,10 @@ async function mongoDB_insert(files) {
         const db = client.db(MONGO_DBNAME);
         const col = db.collection("images");
         // Create image documents from uploaded files
-        let imageDocuments = Array.from(files, x => ({name: x['originalName'], url: x['location']}))
+        let imageDocuments = { name: file['originalname'], url: `https://shopify-image-repo-leungjch.s3.amazonaws.com/${file['originalname']}` }
 
         // Insert into DB
-        const p = await col.insertMany(imageDocuments);
+        const p = await col.insertOne(imageDocuments);
         // const myDoc = await col.findOne();
         // console.log(myDoc);
     } catch (err) {
@@ -32,64 +43,128 @@ async function mongoDB_insert(files) {
     }
 }
 
+async function mongoDB_fetchImages() {
+    try {
+        // Connect to DB
+        await client.connect();
+        console.log("Connected correctly to server");
+
+        const db = client.db(MONGO_DBNAME);
+        const col = db.collection("images");
+        const images = await col.find().toArray(function (err, items) {
+            console.log(items);
+            return callback(items);
+        });
+        return images
+    } catch (err) {
+        console.log(err.stack);
+    }
+    finally {
+        await client.close();
+    }
+}
+
 
 var app = express();
-var s3 = new aws.S3();
 app.use(express.static('public'));
-
-var multer = require('multer');
-var multerS3 = require('multer-s3');
-
-var cors = require('cors');
-var bodyParser = require('body-parser');
-
-
-aws.config.update({
-    secretAccessKey: S3_SECRET_ACCESS_KEY,
-    accessKeyId: S3_ACCESS_ID,
-    region: 'us-east-1'
-});
-
-app.use(bodyParser.json());
-
-  var upload = multer({
-    storage: multerS3({
-        s3: s3,
-        bucket: 'shopify-image-repo-leungjch',
-        key: function (req, file, cb) {
-            console.log(file);
-            cb(null, file.originalname); //use Date.now() for unique file keys
-        },
-        limits: 1024 * 1024 * 5,
-    })
-});
-
-
-
 app.use(cors())
 // For parsing json requests
 app.use(bodyParser.urlencoded({
     extended: true
 }));
+app.use(bodyParser.json());
 
-app.post('/upload', upload.array('upl'), function (req, res, next) {
-    console.log("FILES HERE", req.files)
-    // res.send("Uploaded!");
+const storage = multer.diskStorage({
+    destination: (req, file, callback) => {
+        callback(null, 'images');         // store in /images folder
+    },
+    filename: (req, file, callback) => {
+        callback(null, 'test-image.jpg'); // store current image as test-image.jpg
+    },
+});
+const imageFileFilter = (req, file, callback) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+        return callback(new Error('You can upload only image files'), false);
+    }
+    callback(null, true);
+};
+const upload = multer({ storage, fileFilter: imageFileFilter });
 
-    // Upload to mongodb
-    mongoDB_insert(req.files).catch(console.dir);
+var s3 = new aws.S3({
+    secretAccessKey: S3_SECRET_ACCESS_KEY,
+    accessKeyId: S3_ACCESS_ID,
+    region: 'us-east-1'
+}
+);
+
+
+// POST endpoint
+// Upload images to S3 and add entry to MongoDB
+app.post('/upload', upload.single('upl'), async function (req, res, next) {
+
+    const imagePath = './images/test-image.jpg';
+
+    console.log("FILES HERE", req.file)
+    let img = req.file
+    console.log("IMG IS", img)
+
+
+    // fs.readFile(imagePath, async (err, imageData) => {
+
+        const params = {
+            Bucket: 'shopify-image-repo-leungjch',
+            Key: img.originalname,
+            Body: fs.readFileSync(imagePath),
+            ContentType: img.mimetype,
+            ACL: 'public-read'
+        }
+        
+
+        // Upload to S3
+        s3.upload(params, async (err, data) => {
+            try {
+                if (err) {
+                    console.log("ERROR HERE", err)
+                } else {
+                    // Add all info to database after store picture to S3
+                    console.log("SUccessfully added mongodb")
+                    mongoDB_insert(req.file).catch(console.dir);
+
+                    // res.send(photos);
+                }
+            }
+            catch (err) {
+                //   res.status(500).json({ msg: 'Server Error', error: err });
+                console.log("ERROR ERE")
+            }
+        });
+
+    // });
+
+
 
     res.redirect('/');
 });
 
-  
 
-app.get('./get_images', function(req, res) {
-    console.log("Get images request");
-});
+// GET endpoint
+// Fetch image data from MongoDB
+app.get('/get_images', function (req, res) {
+    MongoClient.connect(uri, function (err, db) {
+        if (err) throw err;
+        var dbo = db.db(MONGO_DBNAME);
+        dbo.collection("images").findOne(
+            function (err, result) {
+                if (err) throw err;
+                console.log("Successfully GET images", result)
+                res.json(result);
+                db.close();
+            });
+    });
+
+})
 
 
-app.listen(8000, function() 
-{
+app.listen(8000, function () {
     console.log('App running on port 8000');
 });

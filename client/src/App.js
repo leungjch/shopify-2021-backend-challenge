@@ -4,7 +4,7 @@ import { FormControl, Form } from "react-bootstrap"
 import Button from '@material-ui/core/Button';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 
 
@@ -22,26 +22,32 @@ function App() {
     data.append('file', files);
 
     axios.post('/upload', data,
-    {
-      headers : {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    .then(function (response) {
-      console.log(response);
-    });
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      .then(function (response) {
+        console.log(response);
+      });
   }
 
   // Fetch images from server
   function fetchImages() {
     fetch('/get_images')
-    .then((response) => response.json())
-    .then((data) => {
-        console.log("Images are", data);
-    });
-
-
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Images are", data)
+        setImages(data);
+      });  
   }
+  // Perform operations when user loads page
+  useEffect(() => {
+    fetchImages();
+
+  }, [])
+
+
 
   return (
     <div className="App">
@@ -60,36 +66,36 @@ function App() {
           Upload Images
       </Button>
       </label> */}
-<form method="post" enctype="multipart/form-data" action="/upload">
+      <form method="post" enctype="multipart/form-data" action="/upload">
 
-<label htmlFor="upl">
-        <Button variant="contained" color="secondary" component="span" >
-          Upload Images
+        <label htmlFor="upl">
+          <Button variant="contained" color="secondary" component="span" >
+            Upload Images
       </Button>
-      </label>
+        </label>
 
-  
-    <p>
-        <input type="text" name="title" placeholder="Access code"/>
-    </p>
 
-    <p>
-        <input type="file" name="upl"
-        accept="image/*"
-        style={{ display: 'none' }}
-        id="upl"
-        name="upl"
+        <p>
+          <input type="text" name="title" placeholder="Access code" />
+        </p>
 
-        multiple
-        type="file"
-        accept="image/*"
+        <p>
+          <input type="file" name="upl"
+            accept="image/*"
+            style={{ display: 'none' }}
+            id="upl"
+            name="upl"
 
-        />
-    </p>
-    <p>
-        <input type="submit"/>
-    </p>
-</form>
+            // multiple
+            type="file"
+            accept="image/*"
+
+          />
+        </p>
+        <p>
+          <input type="submit" />
+        </p>
+      </form>
 
 
 
