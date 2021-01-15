@@ -196,13 +196,10 @@ app.get('/get_images', function (req, res) {
     });
 })
 
-
-// For production build on Heroku
-if (process.env.NODE_ENV === "production") {
-    app.use(express.static("build"));
-    app.get("*", (req, res) => {
-      res.sendFile(path.resolve(__dirname,  "build", "index.html"));
-    });
+// For production build on heroku
+if (process.env.NODE_ENV === 'production') {
+    // Exprees will serve up production assets
+    app.use(express.static('client/build'));
   }
   
 
