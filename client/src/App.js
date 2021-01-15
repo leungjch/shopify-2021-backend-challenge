@@ -119,10 +119,12 @@ function App() {
       '&::placeholder': {
         textOverflow: 'ellipsis !important',
         opacity:"100%",
-        fontSize:"18px",
+        fontSize:"20px",
         color: "#e6f7da"
       },
       fontWeight:"bold",
+      border:"solid",
+      borderRadius:"12px",
       opacity:"100%",
       width: '100%',
       [theme.breakpoints.up('sm')]: {
@@ -147,7 +149,7 @@ function App() {
         <Toolbar>
           <RiLightbulbFlashLine size={32} style={{marginRight:"0.2%"}} />
           <Typography className={classes.title} variant="h5" noWrap>
-            Tensorflow Gallery!
+            Tensorflow Gallery: Auto-Tag Your Images!
           </Typography>
 
 
